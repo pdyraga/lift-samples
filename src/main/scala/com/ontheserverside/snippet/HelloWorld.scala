@@ -1,10 +1,9 @@
-package code
-package snippet
+package com.ontheserverside.snippet
 
 import java.text.SimpleDateFormat
 import java.util.Date
 
-import code.lib.FutureBinds._
+import com.ontheserverside.lib.FutureBinds._
 import net.liftweb.actor.LAFuture
 import net.liftweb.util.Helpers._
 

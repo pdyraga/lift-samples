@@ -14,7 +14,7 @@ import net.liftweb.http.js.jquery._
 class Boot {
   def boot {
     // where to search snippet
-    LiftRules.addToPackages("code")
+    LiftRules.addToPackages("com.ontheserverside")
 
     //Show the spinny image when an Ajax call starts
     LiftRules.ajaxStart =

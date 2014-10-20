@@ -1,4 +1,4 @@
-package code.lib
+package com.ontheserverside.lib
 
 import net.liftweb.actor.LAFuture
 import net.liftweb.http.js.JE.Str
