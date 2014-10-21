@@ -1,10 +1,9 @@
 package com.ontheserverside.lib
 
 import net.liftweb.actor.LAFuture
-import net.liftweb.http.js.JE.Str
+import net.liftweb.http.SHtml
 import net.liftweb.http.js.JsCmd
 import net.liftweb.http.js.JsCmds.{After, OnLoad, Replace, Script}
-import net.liftweb.http.{S, SHtml}
 import net.liftweb.util.Helpers._
 import net.liftweb.util._
 
@@ -21,23 +20,21 @@ object FutureBinds {
   ): CanBind[FutureType] = new CanBind[FutureType] {
 
     def apply(future: => FutureType)(ns: NodeSeq): Seq[NodeSeq] = {
-      val concreteFuture = future
 
-      def resolveAndUpdate(elementId: String): JsCmd  = {
-        if (futureCompleted_?(concreteFuture)) {
-          Replace(elementId, innerTransform(resolveFuture(concreteFuture))(ns).flatten)
-        } else {
-          val funcId = S.request.flatMap(_._params.toList.headOption.map(_._1)).openOr("")
-          After(1.seconds, SHtml.makeAjaxCall(Str(funcId + "=true")).cmd)
+      List(BindHelpers.findOrCreateId { id =>
+        val concreteFuture = future
+        lazy val updateFunc = SHtml.ajaxInvoke(() => resolveAndUpdate).exp.cmd
+
+        def resolveAndUpdate: JsCmd  = {
+          if (futureCompleted_?(concreteFuture)) {
+            Replace(id, innerTransform(resolveFuture(concreteFuture))(ns).flatten)
+          } else {
+            After(1 seconds, updateFunc)
+          }
         }
-      }
 
-      def loadingTransform(elementId: String): NodeSeq => NodeSeq = { _ =>
-        <div id={elementId} class="loading"><img src="/images/ajax-loader.gif" alt="Loading"/></div> ++
-        Script(OnLoad(SHtml.ajaxInvoke(() => resolveAndUpdate(elementId)).exp.cmd))
-      }
-
-      List(BindHelpers.findOrCreateId(id => loadingTransform(id))(ns))
+        _ => <div id={id} class="loading"><img src="/images/ajax-loader.gif" alt="Loading"/></div> ++ Script(OnLoad(updateFunc))
+      }(ns))
     }
   }
 
