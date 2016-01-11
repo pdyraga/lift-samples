@@ -4,12 +4,32 @@
   <meta charset="UTF-8">
   <title>Home</title>
   <script id="jquery" src="/classpath/jquery.js" type="text/javascript"></script>
+  <style>
+    #country-selection-1 span {
+      display: inline-block;
+    }
+  </style>
 </head>
 <body>
-  <div id="main" data-lift="HelloWorld.hello">
-    <span>
-      Welcome to your Lift app at <span id="time">Time goes here</span>
-    </span>
+  <div id="main" data-lift="Snippet.render">
+    <form>
+      <div id="country-selection-1">
+        <input class="country-selection-radio" type="radio">
+      </div>
+      
+      <div id="country-selection-2">
+        <input id="norway" type="radio">
+        <label for="norway">Norway</label>
+        <input id="sweden" type="radio">
+        <label for="sweden">Sweden</label>
+        <input id="finland" type="radio">
+        <label for="finland">Finland</label>
+      </div>
+        
+      <button id="submit" type="submit">Submit</button>
+
+      <span data-lift="Msgs"></span>
+    </form>
   </div>
 </body>
 </html>
