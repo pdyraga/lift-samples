@@ -1,0 +1,13 @@
+<configuration>
+    <logger name="com.ontheserverside" level="DEBUG" />
+    <logger name="net.liftweb.http" level="DEBUG" />
+
+    <appender name="STDOUT" class="ch.qos.logback.core.ConsoleAppender">
+        <encoder>
+            <pattern>%d{yyyy-MM-dd HH:mm:ss.SSS} [%-16thread] %-5level %-35.35logger{30} - %msg%n</pattern>
+        </encoder>
+    </appender>
+    <root level="${log.level}">
+        <appender-ref ref="STDOUT" />
+    </root>
+</configuration>
