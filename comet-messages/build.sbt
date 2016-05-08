@@ -22,7 +22,7 @@ libraryDependencies ++= {
   val liftVersion = "3.0-RC1"
   Seq(
     "net.liftweb"       %% "lift-webkit"            % liftVersion           % "compile",
-    "net.liftmodules"   %% "lift-messagebus_3.0"    % "1.0"                 % "compile",
+    "net.liftmodules"   %% "messagebus_3.0"         % "1.0"                 % "compile",
     "net.liftmodules"   %% "lift-jquery-module_2.6" % "2.8"                 % "compile",
     "org.eclipse.jetty" % "jetty-webapp"            % "8.1.7.v20120910"     % "container",
     "org.eclipse.jetty" % "jetty-plus"              % "8.1.7.v20120910"     % "container", // For Jetty Config
