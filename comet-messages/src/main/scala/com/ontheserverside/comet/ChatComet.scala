@@ -29,7 +29,7 @@ trait NamedCometListenerExample extends CometActor {
   }
 }
 
-// handles message sent by
+// handles message sent by MessageBus
 trait MessageBusExample extends CometActor {
 
   override def localSetup = {
