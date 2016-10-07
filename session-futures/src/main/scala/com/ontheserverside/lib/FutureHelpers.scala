@@ -7,13 +7,20 @@ import scala.concurrent.duration.Duration
 import scala.concurrent.{CanAwait, ExecutionContext, Future}
 import scala.util.Try
 
-object FutureHelpers {
-  def withCurrentSession[T](task: => T)(implicit executionContext: ExecutionContext): Future[T] = {
-    FutureWithSession(task)
-  }
-}
-
-private[lib] class FutureWithSession[T](private[this] val delegate: Future[T]) extends Future[T] {
+/**
+  * Decorates `Future` instance to allow access to session and request resources. Should be created with
+  * `FutureWithSession.withCurrentSession` that takes the current Lift request and session and make it available
+  * to all transformation methods and initial `Future` execution body. Each transformation method returns
+  * `FutureWithSession`, thus, they can be all chained together.
+  *
+  * It's important to bear in mind that each chained method requires current thread's `LiftSession` to be available.
+  * `FutureWithSession` does _not_ propagate initial session or request to all chained methods.
+  *
+  * @see FutureWithSession.withCurrentSession
+  *
+  * @param delegate original `Future` instance that will be enriched with session and request access
+  */
+private[http] class FutureWithSession[T](private[this] val delegate: Future[T]) extends Future[T] {
 
   import FutureWithSession.withCurrentSession
 
@@ -84,9 +91,20 @@ private[lib] class FutureWithSession[T](private[this] val delegate: Future[T]) e
   }
 }
 
-private[lib] object FutureWithSession {
+object FutureWithSession {
 
-  def apply[T](task: => T)(implicit executionContext: ExecutionContext): FutureWithSession[T] = {
+  /**
+    * Creates `Future` instance aware of current request and session. Each `Future` returned by chained
+    * transformation method (e.g. `map`, `flatMap`) will be also request/session-aware. However, it's
+    * important to bear in mind that initial request and session are not propagated to chained methods.
+    * It's required that current execution thread for chained method has its own request/session available
+    * if reading/writing some data to it as a part of chained method execution.
+    */
+  def withCurrentSession[T](task: => T)(implicit executionContext: ExecutionContext): Future[T] = {
+    FutureWithSession(task)
+  }
+
+  private def apply[T](task: => T)(implicit executionContext: ExecutionContext): FutureWithSession[T] = {
     S.session match {
       case Full(_) =>
         val sessionFn = withCurrentSession(() => task)
@@ -99,12 +117,12 @@ private[lib] object FutureWithSession {
     }
   }
 
-  def withCurrentSession[T](task: () => T): () => T = {
+  private def withCurrentSession[T](task: () => T): () => T = {
     val session = S.session openOrThrowException "LiftSession not available in this thread context"
     session.buildDeferredFunction(task)
   }
 
-  def withCurrentSession[A,T](task: (A) => T): (A)=>T = {
+  private def withCurrentSession[A,T](task: (A)=>T): (A)=>T = {
     val session = S.session openOrThrowException "LiftSession not available in this thread context"
     session.buildDeferredFunction(task)
   }
