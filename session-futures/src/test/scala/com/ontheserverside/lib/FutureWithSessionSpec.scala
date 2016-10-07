@@ -1,6 +1,8 @@
 package com.ontheserverside.lib
 
-import net.liftweb.http.{RequestVar, SessionVar}
+import net.liftweb.common.Empty
+import net.liftweb.http.{LiftSession, RequestVar, S, SessionVar}
+import net.liftweb.mockweb.WebSpec
 import org.specs2.matcher.ThrownMessages
 
 import scala.concurrent.Future
@@ -17,10 +19,10 @@ class FutureWithSessionSpec extends WebSpec with ThrownMessages {
   object ReqVar1 extends RequestVar[String]("Uninitialized1")
   object ReqVar2 extends RequestVar[String]("Uninitialized2")
 
-  "LAFutureWithSession" should {
+  "FutureWithSession" should {
 
     "fail if session is not available" in {
-      val future = FutureHelpers.withCurrentSession("kaboom")
+      val future = FutureWithSession.withCurrentSession("kaboom")
 
       future.value must eventually(beSome(beFailedTry[String].withThrowable[IllegalStateException](
         "LiftSession not available in this thread context"
@@ -28,9 +30,25 @@ class FutureWithSessionSpec extends WebSpec with ThrownMessages {
     }
 
     "succeed with original value if session is available" withSFor "/" in {
-      val future = FutureHelpers.withCurrentSession("works!")
+      val future = FutureWithSession.withCurrentSession("works!")
 
       future.value must eventually(beEqualTo(Some(Success("works!"))))
+    }
+
+    "have access to session variables in Future task" withSFor "/" in {
+      SessionVar1("dzien dobry")
+
+      val future = FutureWithSession.withCurrentSession(SessionVar1.is)
+
+      future.value must eventually(beEqualTo(Some(Success("dzien dobry"))))
+    }
+
+    "have access to request variables in Future task" withSFor "/" in {
+      ReqVar1("guten tag")
+
+      val future = FutureWithSession.withCurrentSession(ReqVar1.is)
+
+      future.value must eventually(beEqualTo(Some(Success("guten tag"))))
     }
 
     "have access to session variables in onComplete()" withSFor "/" in {
@@ -38,7 +56,7 @@ class FutureWithSessionSpec extends WebSpec with ThrownMessages {
       // https://groups.google.com/forum/#!topic/liftweb/V1pWy14Wl3A
       SessionVar1.is
 
-      val future = FutureHelpers.withCurrentSession("thorgal")
+      val future = FutureWithSession.withCurrentSession("thorgal")
       future.onComplete {
         case Success(v) => SessionVar1(v)
         case Failure(reason) => ko("Future execution failed: " + reason)
@@ -48,7 +66,7 @@ class FutureWithSessionSpec extends WebSpec with ThrownMessages {
     }
 
     "have access to request variables in onComplete()" withSFor "/" in {
-      val future = FutureHelpers.withCurrentSession("thor")
+      val future = FutureWithSession.withCurrentSession("thor")
       future.onComplete {
         case Success(v) => ReqVar1(v)
         case Failure(reason) => ko("Future execution failed: " + reason)
@@ -61,7 +79,7 @@ class FutureWithSessionSpec extends WebSpec with ThrownMessages {
       SessionVar1("b")
       SessionVar2("c")
 
-      val future = FutureHelpers.withCurrentSession("a")
+      val future = FutureWithSession.withCurrentSession("a")
       val mapped = future.map(_ + SessionVar1.is).map(_ + SessionVar2.is)
 
       mapped.value must eventually(beEqualTo(Some(Success("abc"))))
@@ -71,7 +89,7 @@ class FutureWithSessionSpec extends WebSpec with ThrownMessages {
       ReqVar1("b")
       ReqVar2("c")
 
-      val future = FutureHelpers.withCurrentSession("a")
+      val future = FutureWithSession.withCurrentSession("a")
       val mapped = future.map(_ + ReqVar1.is).map(_ + ReqVar2.is)
 
       mapped.value must eventually(beEqualTo(Some(Success("abc"))))
@@ -81,7 +99,7 @@ class FutureWithSessionSpec extends WebSpec with ThrownMessages {
       SessionVar1("e")
       SessionVar2("f")
 
-      val future = FutureHelpers.withCurrentSession("d")
+      val future = FutureWithSession.withCurrentSession("d")
       val mapped = future
         .flatMap { s => val out = s + SessionVar1.is; Future(out) }
         .flatMap { s => val out = s + SessionVar2.is; Future(out) }
@@ -93,7 +111,7 @@ class FutureWithSessionSpec extends WebSpec with ThrownMessages {
       ReqVar1("e")
       ReqVar2("f")
 
-      val future = FutureHelpers.withCurrentSession("d")
+      val future = FutureWithSession.withCurrentSession("d")
       val mapped = future
         .flatMap { s => val out = s + ReqVar1.is; Future(out) }
         .flatMap { s => val out = s + ReqVar2.is; Future(out) }
@@ -107,7 +125,7 @@ class FutureWithSessionSpec extends WebSpec with ThrownMessages {
       SessionVar1.is
       SessionVar2.is
 
-      val future = FutureHelpers.withCurrentSession("rambo")
+      val future = FutureWithSession.withCurrentSession("rambo")
         .andThen { case Success(v) => SessionVar1(v) }
         .andThen { case Success(v) => SessionVar2(v) }
 
@@ -117,7 +135,7 @@ class FutureWithSessionSpec extends WebSpec with ThrownMessages {
     }
 
     "have access to request variables in chains of andThen()" withSFor "/" in {
-      val future = FutureHelpers.withCurrentSession("conan")
+      val future = FutureWithSession.withCurrentSession("conan")
         .andThen { case Success(v) => ReqVar1(v) }
         .andThen { case Success(v) => ReqVar2(v) }
 
@@ -129,7 +147,7 @@ class FutureWithSessionSpec extends WebSpec with ThrownMessages {
     "have access to session variables in failed projection" withSFor "/" in {
       SessionVar1("on purpose")
 
-      val future = FutureHelpers.withCurrentSession(throw new Exception("failed")).failed.collect {
+      val future = FutureWithSession.withCurrentSession(throw new Exception("failed")).failed.collect {
         case e: Exception => e.getMessage + " " + SessionVar1.is
       }
 
@@ -139,7 +157,7 @@ class FutureWithSessionSpec extends WebSpec with ThrownMessages {
     "have access to request variables in failed projection" withSFor "/" in {
       ReqVar1("on purpose")
 
-      val future = FutureHelpers.withCurrentSession(throw new Exception("failed")).failed.collect {
+      val future = FutureWithSession.withCurrentSession(throw new Exception("failed")).failed.collect {
         case e: Exception => e.getMessage + " " + ReqVar1.is
       }
 
@@ -149,7 +167,7 @@ class FutureWithSessionSpec extends WebSpec with ThrownMessages {
     "have access to session variables in fallbackTo() result" withSFor "/" in {
       SessionVar1("result")
 
-      val future = FutureHelpers.withCurrentSession(throw new Exception("failed"))
+      val future = FutureWithSession.withCurrentSession(throw new Exception("failed"))
         .fallbackTo(Future("fallback")).map(_ + " " + SessionVar1.is)
 
       future.value must eventually(beEqualTo(Some(Success("fallback result"))))
@@ -158,7 +176,7 @@ class FutureWithSessionSpec extends WebSpec with ThrownMessages {
     "have access to request variables in fallbackTo() result" withSFor "/" in {
       ReqVar1("result")
 
-      val future = FutureHelpers.withCurrentSession(throw new Exception("failed"))
+      val future = FutureWithSession.withCurrentSession(throw new Exception("failed"))
         .fallbackTo(Future("fallback")).map(_ + " " + ReqVar1.is)
 
       future.value must eventually(beEqualTo(Some(Success("fallback result"))))
@@ -168,7 +186,7 @@ class FutureWithSessionSpec extends WebSpec with ThrownMessages {
       SessionVar1("g")
       SessionVar2("h")
 
-      val future = FutureHelpers.withCurrentSession(throw new Exception("failed"))
+      val future = FutureWithSession.withCurrentSession(throw new Exception("failed"))
         .recover { case e: Exception => e.getMessage + " " + SessionVar1.is }
         .map(_ + SessionVar2.is)
 
@@ -179,7 +197,7 @@ class FutureWithSessionSpec extends WebSpec with ThrownMessages {
       ReqVar1("g")
       ReqVar2("h")
 
-      val future = FutureHelpers.withCurrentSession(throw new Exception("failed"))
+      val future = FutureWithSession.withCurrentSession(throw new Exception("failed"))
         .recover { case e: Exception => e.getMessage + " " + ReqVar1.is }
         .map(_ + ReqVar2.is)
 
@@ -190,7 +208,7 @@ class FutureWithSessionSpec extends WebSpec with ThrownMessages {
       SessionVar1("i")
       SessionVar2("j")
 
-      val future = FutureHelpers.withCurrentSession(throw new Exception("failed"))
+      val future = FutureWithSession.withCurrentSession(throw new Exception("failed"))
         .recoverWith { case e: Exception => val out = e.getMessage + " " + SessionVar1.is; Future(out) }
         .map(_ + SessionVar2.is)
 
@@ -201,7 +219,7 @@ class FutureWithSessionSpec extends WebSpec with ThrownMessages {
       ReqVar1("k")
       ReqVar2("l")
 
-      val future = FutureHelpers.withCurrentSession(throw new Exception("failed"))
+      val future = FutureWithSession.withCurrentSession(throw new Exception("failed"))
         .recoverWith { case e: Exception => val out = e.getMessage + " " + ReqVar1.is; Future(out) }
         .map(_ + ReqVar2.is)
 
@@ -212,7 +230,7 @@ class FutureWithSessionSpec extends WebSpec with ThrownMessages {
       SessionVar1("john")
       SessionVar2("rambo")
 
-      val future = FutureHelpers.withCurrentSession("something")
+      val future = FutureWithSession.withCurrentSession("something")
         .transform(s => throw new Exception(SessionVar1.is), identity[Throwable])
         .transform(identity[String], t => new Exception(t.getMessage + " " + SessionVar2.is))
         .recover { case e: Exception => e.getMessage }
@@ -224,7 +242,7 @@ class FutureWithSessionSpec extends WebSpec with ThrownMessages {
       ReqVar1("chuck")
       ReqVar2("norris")
 
-      val future = FutureHelpers.withCurrentSession("something")
+      val future = FutureWithSession.withCurrentSession("something")
         .transform(s => throw new Exception(ReqVar1.is), identity[Throwable])
         .transform(identity[String], t => new Exception(t.getMessage + " " + ReqVar2.is))
         .recover { case e: Exception => e.getMessage }
@@ -236,11 +254,38 @@ class FutureWithSessionSpec extends WebSpec with ThrownMessages {
       ReqVar1("a")
       SessionVar1("hero")
 
-      val future = FutureHelpers.withCurrentSession("gotham")
+      val future = FutureWithSession.withCurrentSession("gotham")
         .zip(Future("needs"))
         .collect { case (one, two) => one + two + ReqVar1.is + SessionVar1.is }
 
       future.value must eventually(beEqualTo(Some(Success("gothamneedsahero"))))
+    }
+
+    "not leak out initial session between threads with their own sessions" in {
+      val session1 = new LiftSession("Test session 1", "", Empty)
+      val session2 = new LiftSession("Test session 2", "", Empty)
+      val session3 = new LiftSession("Test session 3", "", Empty)
+
+      S.initIfUninitted(session1)(SessionVar1("one"))
+      S.initIfUninitted(session2)(SessionVar1("two"))
+      S.initIfUninitted(session3)(SessionVar1("three"))
+
+      val future = S.initIfUninitted(session1)(FutureWithSession.withCurrentSession("zero"))
+
+      S.initIfUninitted(session2) {
+        val mapped = future.map(v => SessionVar1.is)
+        mapped.value must eventually(beEqualTo(Some(Success("two"))))
+      }
+
+      S.initIfUninitted(session3) {
+        val mapped = future.map(v => SessionVar1.is)
+        mapped.value must eventually(beEqualTo(Some(Success("three"))))
+      }
+
+      S.initIfUninitted(session1) {
+        val mapped = future.map(v => SessionVar1.is)
+        mapped.value must eventually(beEqualTo(Some(Success("one"))))
+      }
     }
   }
 }
