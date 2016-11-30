@@ -13,7 +13,8 @@ import scala.concurrent.ExecutionContext.Implicits.global
 class HelloWorld {
 
   def render = {
-    // This code is not yet in Lift, it has just been proposed there in my PR so far
+    // This code is not yet available in Lift (as of 3.0.0).
+    // PR discussion is still in progress https://github.com/lift/framework/pull/1813
     //"#lift-future *" #> LAFutureWithSession.withCurrentSession {
     //  Thread.sleep(3000);
     //  S ? ("general-futureCompleted", date)
@@ -22,7 +23,6 @@ class HelloWorld {
       Thread.sleep(1000);
       S ? ("general-futureCompleted", date)
     }.map(s => s"$s in request from = ${S.request.map(_.userAgent).openOrThrowException("No request!")}")
-
   }
 
   private def date: String = {

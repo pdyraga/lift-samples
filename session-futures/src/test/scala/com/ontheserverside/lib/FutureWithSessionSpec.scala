@@ -2,7 +2,6 @@ package com.ontheserverside.lib
 
 import net.liftweb.common.Empty
 import net.liftweb.http.{LiftSession, RequestVar, S, SessionVar}
-import net.liftweb.mockweb.WebSpec
 import org.specs2.matcher.ThrownMessages
 
 import scala.concurrent.Future
@@ -66,6 +65,10 @@ class FutureWithSessionSpec extends WebSpec with ThrownMessages {
     }
 
     "have access to request variables in onComplete()" withSFor "/" in {
+      // workaround for a possible race condition in AnyVarTrait
+      // https://groups.google.com/forum/#!topic/liftweb/V1pWy14Wl3A
+      ReqVar1.is
+
       val future = FutureWithSession.withCurrentSession("thor")
       future.onComplete {
         case Success(v) => ReqVar1(v)
@@ -101,8 +104,14 @@ class FutureWithSessionSpec extends WebSpec with ThrownMessages {
 
       val future = FutureWithSession.withCurrentSession("d")
       val mapped = future
-        .flatMap { s => val out = s + SessionVar1.is; Future(out) }
-        .flatMap { s => val out = s + SessionVar2.is; Future(out) }
+        .flatMap { s =>
+          val out = s + SessionVar1.is
+          Future(out)
+        }
+        .flatMap { s =>
+          val out = s + SessionVar2.is
+          Future(out)
+        }
 
       mapped.value must eventually(beEqualTo(Some(Success("def"))))
     }
@@ -113,14 +122,20 @@ class FutureWithSessionSpec extends WebSpec with ThrownMessages {
 
       val future = FutureWithSession.withCurrentSession("d")
       val mapped = future
-        .flatMap { s => val out = s + ReqVar1.is; Future(out) }
-        .flatMap { s => val out = s + ReqVar2.is; Future(out) }
+        .flatMap { s =>
+          val out = s + ReqVar1.is
+          Future(out)
+        }
+        .flatMap { s =>
+          val out = s + ReqVar2.is
+          Future(out)
+        }
 
       mapped.value must eventually(beEqualTo(Some(Success("def"))))
     }
 
     "have access to session variables in chains of andThen()" withSFor "/" in {
-      // workaround for a possible race condition in SessionVar
+      // workaround for a possible race condition in AnyVarTrait
       // https://groups.google.com/forum/#!topic/liftweb/V1pWy14Wl3A
       SessionVar1.is
       SessionVar2.is
@@ -135,6 +150,11 @@ class FutureWithSessionSpec extends WebSpec with ThrownMessages {
     }
 
     "have access to request variables in chains of andThen()" withSFor "/" in {
+      // workaround for a possible race condition in AnyVarTrait
+      // https://groups.google.com/forum/#!topic/liftweb/V1pWy14Wl3A
+      ReqVar1.is
+      ReqVar2.is
+
       val future = FutureWithSession.withCurrentSession("conan")
         .andThen { case Success(v) => ReqVar1(v) }
         .andThen { case Success(v) => ReqVar2(v) }
@@ -209,7 +229,10 @@ class FutureWithSessionSpec extends WebSpec with ThrownMessages {
       SessionVar2("j")
 
       val future = FutureWithSession.withCurrentSession(throw new Exception("failed"))
-        .recoverWith { case e: Exception => val out = e.getMessage + " " + SessionVar1.is; Future(out) }
+        .recoverWith { case e: Exception =>
+          val out = e.getMessage + " " + SessionVar1.is
+          Future(out)
+        }
         .map(_ + SessionVar2.is)
 
       future.value must eventually(beEqualTo(Some(Success("failed ij"))))
@@ -220,7 +243,10 @@ class FutureWithSessionSpec extends WebSpec with ThrownMessages {
       ReqVar2("l")
 
       val future = FutureWithSession.withCurrentSession(throw new Exception("failed"))
-        .recoverWith { case e: Exception => val out = e.getMessage + " " + ReqVar1.is; Future(out) }
+        .recoverWith { case e: Exception =>
+          val out = e.getMessage + " " + ReqVar1.is
+          Future(out)
+        }
         .map(_ + ReqVar2.is)
 
       future.value must eventually(beEqualTo(Some(Success("failed kl"))))
